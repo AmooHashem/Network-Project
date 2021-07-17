@@ -3,48 +3,49 @@ import socket
 import threading
 import re
 
-PORT_NUMBER = 12245
+from Packet import Packet, PacketEncoder
+from setting import host, manager_port, get_listen_port, make_link
 
-from constants import MANAGER_PORT, HOST
+my_listen_port = get_listen_port()
 
-MY_PORT_NUMBER = PORT_NUMBER
-PORT_NUMBER += 1
+receive_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+receive_socket.bind((host, my_listen_port))
+receive_socket.listen()
 
-sender = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-receiver = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-receiver.bind((HOST, MY_PORT_NUMBER))
-receiver.listen()
+parent_id = '-1'
+parent_listen_port = '-1'
+known_ports = []
+subtree_ids = []
 
 
-def get_json_message():
-    message = json.loads(sender.recv(1024).decode('ascii'))
+def get_message(client):
+    message = json.loads(client.recv(1024).decode('ascii'))
     return message
 
 
-def get_text_message():
-    message = sender.recv(1024).decode('ascii')
-    return message
-
-
-def send_json_message(message):
-    message = json.dumps(message).encode('ascii')
-    sender.send(message)
-
-
-def send_text_message(message):
-    message = message.encode('ascii')
-    sender.send(message)
+def send_message(link, message):
+    message = json.dumps(message, cls=PacketEncoder).encode('ascii')
+    print(message)
+    link.send(message)
 
 
 def receive():
     while True:
         try:
-            message = get_json_message()
-            print(message)
-            if message == 'username':
-                sender.send(id.encode('ascii'))
+            client, address = receive_socket.accept()
+            response = get_message(client)
+            type = response['type']
+            if type == 41:
+                known_ports.append(response['data'])
+                print(known_ports)
+
+                parent_link = make_link(parent_listen_port)
+                send_message(parent_link, Packet(41, id, parent_id, my_listen_port))
+
+        # if message == 'username':
+        #     sender.send(id.encode('ascii'))
         except:
-            sender.close()
+            # sender.close()
             break
 
 
@@ -59,11 +60,19 @@ def write():
 
 
 if __name__ == '__main__':
+
     id = input("Please enter your id: ")
-    # while input() != "CONNECT TO MANAGER":
-    #     pass
-    sender.connect((HOST, MANAGER_PORT))
-    send_text_message(f"{id} REQUESTS FOR CONNECTING TO NETWORK ON PORT {MY_PORT_NUMBER}")
+    manager_link = make_link(manager_port)
+    manager_link.send(f"{id} REQUESTS FOR CONNECTING TO NETWORK ON PORT {my_listen_port}".encode('ascii'))
+    message_parts = manager_link.recv(1024).decode('ascii').split(' ')
+    manager_link.close()
+    parent_id, parent_listen_port = message_parts[2], int(message_parts[5])
+    known_ports.append(parent_listen_port)
+
+    if parent_id != '-1':
+        parent_link = make_link(parent_listen_port)
+        send_message(parent_link, Packet(41, id, parent_id, my_listen_port))
+        parent_link.close()
 
     receive_thread = threading.Thread(target=receive)
     receive_thread.start()

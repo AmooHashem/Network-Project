@@ -2,14 +2,15 @@ import json
 import socket
 import threading
 
-from constants import MANAGER_PORT, HOST
+from setting import manager_port, host
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind((HOST, MANAGER_PORT))
+server.bind((host, manager_port))
 server.listen()
 
 clients = []
 ids = []
+listen_ports = []
 
 
 def get_json_message(client):
@@ -28,25 +29,21 @@ def send_json_message(client, message):
 
 
 def send_text_message(client, message):
+    print(client, message)
     message = message.encode('ascii')
     client.send(message)
-
-
-def broadcast(message):
-    for client in clients:
-        send_json_message(client, message)
 
 
 def handle(client):
     while True:
         try:
+            print("111")
             message = get_json_message(client)
             print(message)
-            broadcast(message)
         except:
-            index = clients.index(client)
-            clients.remove(client)
-            client.close()
+            # index = clients.index(client)
+            # clients.remove(client)
+            # client.close()
             # username = usernames[index]
             # usernames.remove(username)
             break
@@ -55,14 +52,21 @@ def handle(client):
 if __name__ == '__main__':
     while True:
         client, address = server.accept()
-        clients.append(client)
         print(f'connected with {address}')
 
         message_parts = get_text_message(client).split(' ')
-        id, listen_port = message_parts[0], message_parts[len(message_parts) - 1]
+        print(message_parts)
+        id, listen_port = message_parts[0], message_parts[8]
 
-        print(id, listen_port)
-        ids.append((id, listen_port))
+        if len(clients) == 0:
+            answer = f'CONNECT TO {-1} WITH PORT {-1}'
+        else:
+            answer = f'CONNECT TO {ids[(len(ids) - 1) // 2]} WITH PORT {listen_ports[(len(listen_ports) - 1) // 2]}'
+        send_text_message(client, answer)
+
+        clients.append(client)
+        ids.append(id)
+        listen_ports.append(listen_port)
 
         thread = threading.Thread(target=handle, args=(client,))
         thread.start()
