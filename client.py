@@ -66,9 +66,11 @@ def receive():
                     right_subtree_ids.append(src_id)
                 if parent_port != -1:
                     make_tcp_connection(parent_port, Packet(20, id, parent_id, src_id))
-                    
+
             if type == 0 and response['data'][:5] == 'CHAT:':
-                application.handle_chat(response['dst_id'], response['data'])
+                application.handle_chat(response['src_id'], response['data'])
+            if type == 0 and response['data'] == 'Salam Salam Sad Ta Salam':
+                application.handle_salam(response['src_id'], response['data'])     
         # if message == 'username':
         #     sender.send(id.encode('ascii'))
         except:
