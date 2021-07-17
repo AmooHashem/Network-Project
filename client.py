@@ -5,7 +5,7 @@ import re
 
 from Packet import Packet, PacketEncoder
 from setting import host, manager_port, get_listen_port, make_link
-
+import application
 my_listen_port = get_listen_port()
 
 receive_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,7 +41,8 @@ def receive():
 
                 parent_link = make_link(parent_listen_port)
                 send_message(parent_link, Packet(41, id, parent_id, my_listen_port))
-
+            if type == 0 and response['data'][:5] == 'CHAT:':
+                application.handle_chat(response['dst_id'], response['data'])
         # if message == 'username':
         #     sender.send(id.encode('ascii'))
         except:
