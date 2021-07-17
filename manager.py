@@ -18,26 +18,14 @@ def get_json_message(client):
     return message
 
 
-def get_text_message(client):
-    message = client.recv(1024).decode('ascii')
-    return message
-
-
-def send_json_message(client, message):
+def send_message(client, message):
     message = json.dumps(message).encode('ascii')
-    client.send(message)
-
-
-def send_text_message(client, message):
-    print(client, message)
-    message = message.encode('ascii')
     client.send(message)
 
 
 def handle(client):
     while True:
         try:
-            print("111")
             message = get_json_message(client)
             print(message)
         except:
@@ -54,7 +42,7 @@ if __name__ == '__main__':
         client, address = server.accept()
         print(f'connected with {address}')
 
-        message_parts = get_text_message(client).split(' ')
+        message_parts = client.recv(1024).decode('ascii').split(' ')
         print(message_parts)
         id, listen_port = message_parts[0], message_parts[8]
 
@@ -62,7 +50,7 @@ if __name__ == '__main__':
             answer = f'CONNECT TO {-1} WITH PORT {-1}'
         else:
             answer = f'CONNECT TO {ids[(len(ids) - 1) // 2]} WITH PORT {listen_ports[(len(listen_ports) - 1) // 2]}'
-        send_text_message(client, answer)
+        client.send(answer.encode('ascii'))
 
         clients.append(client)
         ids.append(id)
