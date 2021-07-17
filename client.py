@@ -4,13 +4,8 @@ import threading
 import re
 
 from Packet import Packet, PacketEncoder
-<<<<<<< HEAD
-from setting import host, manager_port, get_listen_port, make_link
-import application
-=======
 from setting import host, manager_port, get_listen_port, make_tcp_connection, make_link
 
->>>>>>> d31ef50d0da1aa5687b85f6e14918cb5b49c0a00
 my_listen_port = get_listen_port()
 
 receive_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -70,7 +65,7 @@ def receive():
             if type == 0 and response['data'][:5] == 'CHAT:':
                 application.handle_chat(response['src_id'], response['data'])
             if type == 0 and response['data'] == 'Salam Salam Sad Ta Salam':
-                application.handle_salam(response['src_id'], response['data'])     
+                application.handle_salam(response['src_id'])     
         # if message == 'username':
         #     sender.send(id.encode('ascii'))
         except:
@@ -87,7 +82,7 @@ def write():
         if command_parts[0] == 'ROUTE':
             dest_id = command_parts[1]
 
-
+is_chat = False
 if __name__ == '__main__':
 
     id = input("Please enter your id: ")
@@ -107,3 +102,27 @@ if __name__ == '__main__':
 
     write_thread = threading.Thread(target=write)
     write_thread.start()
+
+    while True:
+        if not is_chat:
+            comment = input("enter order:\n")
+        else:
+            message = input()
+            
+## application
+
+def send_message_to_id(dst_id, message):
+    #send message to dst_id
+    pass
+
+def send_message_to_group_of_ids(dst_ids, message):
+    for id in dst_ids:
+        if id in known_ids:
+            send_message_to_id(id, message)
+
+def handle_chat(src_id, message):
+    pass
+
+def handle_salam(src_id):
+    message = 'Hezaro Sisad Ta Salam'
+    send_message_to_id(src_id, message)
