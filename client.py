@@ -5,6 +5,7 @@ import re
 
 from Packet import Packet, PacketEncoder
 from setting import host, manager_port, get_listen_port, make_tcp_connection, make_link
+import re
 
 my_listen_port = get_listen_port()
 
@@ -84,6 +85,8 @@ def write():
 
 is_chat = False
 my_id = None
+my_name = ''
+chat_ids = []
 if __name__ == '__main__':
 
     id = input("Please enter your id: ")
@@ -108,10 +111,14 @@ if __name__ == '__main__':
     while True:
         if not is_chat:
             comment = input("enter order:\n")
-            if comment.match(r'START CHAT {+w}: {+w}(, {+w})+'):
+            if re.match(r'START CHAT (\w+): (\w+)[, (\w+)]+', comment):
+                m = re.match(r'START CHAT (\w+): (\w+)[, (\w+)]+', comment)
+                name = m[1]
+                ids = m[2:]
                 chat_start(name, ids)
         else:
             message = input()
+            send_message_to_group_of_ids(chat_ids, f'{my_name}: {message}')
             
 ## application
 
@@ -125,23 +132,36 @@ def send_message_to_group_of_ids(dst_ids, message):
             send_message_to_id(id, message)
 
 def handle_chat_recive(src_id, message):
-    if message.match(r"CHAT: REQUESTS FOR STARTING WITH {+w}: {+w}(, {+w})+"):
+    if re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)[, (\w+)]*", message):
+        m = re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)[, (\w+)]*", message)
+        cname = m[1]
+        cid = m[2]
+        ids = m[2:]
         answer = input(f'{cname} with id {cid} has asked you to join a chat. Would you like to join?[Y/N]')
         if answer == 'Y':
             name = input("Choose a name for yourself")
+            my_name = name
+            chat_ids = ids
             message = f'CHAT: {my_id} :{name}'
             send_message_to_group_of_ids(ids, message)
-    elif message.match(r'CHAT: {+w} :{+w}'):
+    elif re.match(r'CHAT: (\w+) :(\w+)', message):
+        m = re.match(r'CHAT: (\w+) :(\w+)', message)
+        name = m[1]
+        id = m[2]
         print(f'{name}({id}) was joind to the chat.')
+    else :
+        print(message[5:])
         
 
 def chat_start(name, ids):
+    my_name = name
     i = 0
     while i < len(ids):
         if ids[i] in known_ids:
             i+=1
         else:
             ids.pop(i)
+    chat_ids = ids
     message = f'CHAT: REQUESTS FOR STARTING WITH {name}: {my_id}'
     for id in ids:
         message += f', {id}'
