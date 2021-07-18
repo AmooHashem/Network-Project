@@ -64,9 +64,9 @@ def receive():
                     make_tcp_connection(parent_port, Packet(20, id, parent_id, src_id))
 
             if type == 0 and response['data'][:5] == 'CHAT:':
-                application.handle_chat(response['src_id'], response['data'])
+                handle_chat_recive(response['src_id'], response['data'])
             if type == 0 and response['data'] == 'Salam Salam Sad Ta Salam':
-                application.handle_salam(response['src_id'])     
+                handle_salam(response['src_id'])     
         # if message == 'username':
         #     sender.send(id.encode('ascii'))
         except:
@@ -87,6 +87,7 @@ is_chat = False
 my_id = None
 my_name = ''
 chat_ids = []
+chat_dict = {}
 if __name__ == '__main__':
 
     id = input("Please enter your id: ")
@@ -111,14 +112,14 @@ if __name__ == '__main__':
     while True:
         if not is_chat:
             comment = input("enter order:\n")
-            if re.match(r'START CHAT (\w+): (\w+)[, (\w+)]+', comment):
-                m = re.match(r'START CHAT (\w+): (\w+)[, (\w+)]+', comment)
+            if re.match(r'START CHAT (\w+): (\w+)([, \w]+)', comment):
+                m = re.match(r'START CHAT (\w+): (\w+)([, \w]+)', comment)
                 name = m[1]
-                ids = m[2:]
+                ids = m[2] + m[3].split(", ")[1:]
                 chat_start(name, ids)
         else:
             message = input()
-            send_message_to_group_of_ids(chat_ids, f'{my_name}: {message}')
+            send_message_to_group_of_ids(chat_dict.keys, f'{message}')
             
 ## application
 
@@ -132,11 +133,11 @@ def send_message_to_group_of_ids(dst_ids, message):
             send_message_to_id(id, message)
 
 def handle_chat_recive(src_id, message):
-    if re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)[, (\w+)]*", message):
-        m = re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)[, (\w+)]*", message)
+    if re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message):
+        m = re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message)
         cname = m[1]
         cid = m[2]
-        ids = m[2:]
+        ids = m[2] + m[3].split(", ")[1:]
         answer = input(f'{cname} with id {cid} has asked you to join a chat. Would you like to join?[Y/N]')
         if answer == 'Y':
             name = input("Choose a name for yourself")
@@ -144,13 +145,23 @@ def handle_chat_recive(src_id, message):
             chat_ids = ids
             message = f'CHAT: {my_id} :{name}'
             send_message_to_group_of_ids(ids, message)
+        else:
+            message = "CHAT: CANCLE"
+            send_message_to_group_of_ids(ids, message)
     elif re.match(r'CHAT: (\w+) :(\w+)', message):
         m = re.match(r'CHAT: (\w+) :(\w+)', message)
         name = m[1]
         id = m[2]
-        print(f'{name}({id}) was joind to the chat.')
+        if id in chat_ids:
+            chat_dict[id] = name
+            print(f'{name}({id}) was joind to the chat.')
+    elif message == "CHAT: CANCLE":
+        try:
+            chat_ids.remove(src_id)
+        except:
+            pass
     else :
-        print(message[5:])
+        print(f'{chat_dict[src_id]}: {message[5:]}')
         
 
 def chat_start(name, ids):
@@ -161,8 +172,9 @@ def chat_start(name, ids):
             i+=1
         else:
             ids.pop(i)
+    is_chat = True
     chat_ids = ids
-    message = f'CHAT: REQUESTS FOR STARTING WITH {name}: {my_id}'
+    message = f'CHAT: REQUESTS FOR STARTING WITH {my_name}: {my_id}'
     for id in ids:
         message += f', {id}'
     send_message_to_group_of_ids(ids, message)
