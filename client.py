@@ -261,6 +261,10 @@ if __name__ == '__main__':
                 app_fw = 'D'
             elif comment == 'FW CHAT ACCEPT':
                 app_fw = 'A'
+            elif re.match("SALAM TO (\w+)", comment):
+                m = re.match("SALAM TO (\w+)", comment)
+                send_message_to_id(m[1], "Salam Salam Sad Ta Salam")
+                
         else:
             message = input()
             if message == "EXIT CHAT":
