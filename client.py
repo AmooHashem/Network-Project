@@ -55,7 +55,7 @@ def receive():
             src_id = packet.src_id
             dst_id = packet.dst_id
             data = packet.data
-
+            print("new packet",type, src_id, dst_id, data)
             #################
             if type == 41:
                 chile_port = data
@@ -92,7 +92,13 @@ def receive():
                     print(id + data)
                 if type == 31:
                     print(data)
-
+                if type == 0 and data[:5] == 'CHAT:':
+                    handle_chat_recive(src_id, data)
+                elif type == 0 and data == 'Salam Salam Sad Ta Salam':
+                    handle_salam(src_id)
+                    print(f'{src_id}: {data}')  
+                elif type == 0 and data == 'Hezaro Sisad Ta Salam':
+                    print(f'{src_id}: {data}')
                 continue
 
             #################
@@ -105,10 +111,7 @@ def receive():
 
             #################
 
-            if type == 0 and data[:5] == 'CHAT:':
-                handle_chat_recive(src_id, data)
-            if type == 0 and data == 'Salam Salam Sad Ta Salam':
-                handle_salam(src_id)   
+            
             
             #
             #
@@ -125,68 +128,25 @@ def receive():
             break
 
 
-def write():
-    while True:
-        if not is_chat:
-            command = input("enter order:\n")
-            command_parts = command.split(' ')
-            if command == 'SHOW KNOWN CLIENTS':
-                print(known_ids)
-
-            if command_parts[0] == 'ROUTE':
-                dst_id = command_parts[1]
-                if dst_id not in known_ids:
-                    print(f'Unknown destination {dst_id}')
-                    continue
-                next_port = find_next_port(dst_id)
-                if next_port == -1:
-                    print(f'DESTINATION {dst_id} NOT FOUND')
-                    continue
-                send_on_link(my_send_port, next_port, Packet(10, id, dst_id, ''))
-
-            if command_parts[0] == 'ADVERTISE':
-                dst_id = command_parts[1]
-                if dst_id not in known_ids:
-                    print(f'Unknown destination {dst_id}')
-                    continue
-                # todo
-                continue
-
-            if re.match(r'START CHAT (\w+): (\w+)([, \w]+)', command):
-                m = re.match(r'START CHAT (\w+): (\w+)([, \w]+)', command)
-                name = m[1]
-                ids = m[2] + m[3].split(", ")[1:]
-                chat_start(name, ids)
-
-            elif command == 'FW CHAT DROP':
-                app_fw = 'D'
-            elif command == 'FW CHAT ACCEPT':
-                app_fw = 'A'
-            elif re.match("SALAM TO (\w+)", command):
-                m = re.match("SALAM TO (\w+)", command)
-                send_message_to_id(m[1], "Salam Salam Sad Ta Salam")
-                
-        else:
-            message = input()
-            if message == "EXIT CHAT":
-                is_chat = False
-                send_message_to_group_of_ids(chat_dict.keys, f'CHAT: EXIT CHAT {my_id}')
-                chat_dict = {}
-                chat_ids = []
-                
-            else:
-                send_message_to_group_of_ids(chat_dict.keys, f'{message}')
-            
-
 is_chat = False
 my_id = None
 my_name = ''
 chat_ids = []
 chat_dict = {}
 app_fw = 'A'
+
 def send_message_to_id(dst_id, message):
-    #send message to dst_id
-    pass
+    global known_ids, my_id
+    if dst_id not in known_ids:
+        print(f'Unknown destination {dst_id}')
+        return
+    next_port = find_next_port(dst_id)
+    if next_port == -1:
+        print(f'DESTINATION {dst_id} NOT FOUND')
+        return
+    send_on_link(my_send_port, next_port, Packet(0, my_id, dst_id, message))
+    print(dst_id, message, "sent!")
+    
 
 def send_message_to_group_of_ids(dst_ids, message):
     for id in dst_ids:
@@ -194,12 +154,14 @@ def send_message_to_group_of_ids(dst_ids, message):
             send_message_to_id(id, message)
 
 def handle_chat_recive(src_id, message):
-    global chat_ids, chat_dict
+    global is_chat, my_id, my_name, chat_dict, chat_ids, app_fw
+    print("chat", src_id, message, "resive!")
     if re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message) and not is_chat and app_fw == 'A':
         m = re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message)
         cname = m[1]
         cid = m[2]
-        ids = m[2] + m[3].split(", ")[1:]
+        ids = [m[2]] + m[3].split(", ")[1:]
+        
         answer = input(f'{cname} with id {cid} has asked you to join a chat. Would you like to join?[Y/N]')
         if answer == 'Y':
             name = input("Choose a name for yourself")
@@ -233,6 +195,7 @@ def handle_chat_recive(src_id, message):
         
 
 def chat_start(name, ids):
+    global is_chat, my_id, my_name, chat_dict, chat_ids, app_fw
     if app_fw == 'D':
         print("Chat is disabled. Make sure the firewall allows you to chat.")
         return
@@ -251,8 +214,64 @@ def chat_start(name, ids):
     send_message_to_group_of_ids(ids, message)
 
 def handle_salam(src_id):
+    print("salam", src_id, "resive!")
     message = 'Hezaro Sisad Ta Salam'
     send_message_to_id(src_id, message)
+
+
+def write():
+    global is_chat, my_id, my_name, chat_dict, chat_ids, app_fw
+    while True:
+        if not is_chat:
+            command = input("enter order:\n")
+            command_parts = command.split(' ')
+            if command == 'SHOW KNOWN CLIENTS':
+                print(known_ids)
+
+            if command_parts[0] == 'ROUTE':
+                dst_id = command_parts[1]
+                if dst_id not in known_ids:
+                    print(f'Unknown destination {dst_id}')
+                    continue
+                next_port = find_next_port(dst_id)
+                if next_port == -1:
+                    print(f'DESTINATION {dst_id} NOT FOUND')
+                    continue
+                send_on_link(my_send_port, next_port, Packet(10, id, dst_id, ''))
+
+            if command_parts[0] == 'ADVERTISE':
+                dst_id = command_parts[1]
+                if dst_id not in known_ids:
+                    print(f'Unknown destination {dst_id}')
+                    continue
+                # todo
+                continue
+
+            if re.match(r'START CHAT (\w+): (\w+)([, \w]*)', command):
+                m = re.match(r'START CHAT (\w+): (\w+)([, \w]*)', command)
+                name = m[1]
+                ids = [m[2]] + m[3].split(", ")[1:]
+                chat_start(name, ids)
+
+            elif command == 'FW CHAT DROP':
+                app_fw = 'D'
+            elif command == 'FW CHAT ACCEPT':
+                app_fw = 'A'
+            elif re.match("SALAM TO (\w+)", command):
+                m = re.match("SALAM TO (\w+)", command)
+                send_message_to_id(m[1], "Salam Salam Sad Ta Salam")
+                
+        else:
+            message = input()
+            if message == "EXIT CHAT":
+                is_chat = False
+                send_message_to_group_of_ids(chat_dict.keys, f'CHAT: EXIT CHAT {my_id}')
+                chat_dict = {}
+                chat_ids = []
+                
+            else:
+                send_message_to_group_of_ids(chat_dict.keys, f'{message}')
+            
 
 
 if __name__ == '__main__':
