@@ -106,6 +106,8 @@ if __name__ == '__main__':
     while True:
         if not is_chat:
             comment = input("enter order:\n")
+            if comment.match(r'START CHAT {+w}: {+w}(, {+w})+'):
+                chat_start(name, ids)
         else:
             message = input()
             
@@ -120,8 +122,20 @@ def send_message_to_group_of_ids(dst_ids, message):
         if id in known_ids:
             send_message_to_id(id, message)
 
-def handle_chat(src_id, message):
+def handle_chat_recive(src_id, message):
     pass
+
+def chat_start(name, ids):
+    i = 0
+    while i < len(ids):
+        if ids[i] in known_ids:
+            i+=1
+        else:
+            ids.pop(i)
+    message = f'CHAT: REQUESTS FOR STARTING WITH {name}: {my_id}'
+    for id in ids:
+        message += f', {id}'
+    send_message_to_group_of_ids(ids, message)
 
 def handle_salam(src_id):
     message = 'Hezaro Sisad Ta Salam'
