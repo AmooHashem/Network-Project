@@ -88,6 +88,75 @@ my_id = None
 my_name = ''
 chat_ids = []
 chat_dict = {}
+
+def send_message_to_id(dst_id, message):
+    #send message to dst_id
+    pass
+
+def send_message_to_group_of_ids(dst_ids, message):
+    for id in dst_ids:
+        if id in known_ids:
+            send_message_to_id(id, message)
+
+def handle_chat_recive(src_id, message):
+    global chat_ids, chat_dict
+    if re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message) and not is_chat:
+        m = re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message)
+        cname = m[1]
+        cid = m[2]
+        ids = m[2] + m[3].split(", ")[1:]
+        answer = input(f'{cname} with id {cid} has asked you to join a chat. Would you like to join?[Y/N]')
+        if answer == 'Y':
+            name = input("Choose a name for yourself")
+            my_name = name
+            chat_ids = ids
+            message = f'CHAT: {my_id} :{name}'
+            send_message_to_group_of_ids(ids, message)
+        else:
+            message = "CHAT: CANCLE"
+            send_message_to_group_of_ids(ids, message)
+    elif re.match(r'CHAT: (\w+) :(\w+)', message):
+        m = re.match(r'CHAT: (\w+) :(\w+)', message)
+        name = m[1]
+        id = m[2]
+        if id in chat_ids:
+            chat_dict[id] = name
+            print(f'{name}({id}) was joind to the chat.')
+    elif message == "CHAT: CANCLE":
+        try:
+            chat_ids.remove(src_id)
+        except:
+            pass
+    elif re.match("CHAT: EXIT CHAT (\w+)", message):
+        m = re.match("CHAT: EXIT CHAT (\w+)", message)
+        id = m[1]
+        print(f'{chat_dict[id]}({id}) left the chat.')
+        chat_ids.remove(id)
+        chat_dict.pop(id)
+    else :
+        print(f'{chat_dict[src_id]}: {message[5:]}')
+        
+
+def chat_start(name, ids):
+    my_name = name
+    i = 0
+    while i < len(ids):
+        if ids[i] in known_ids:
+            i+=1
+        else:
+            ids.pop(i)
+    is_chat = True
+    chat_ids = ids
+    message = f'CHAT: REQUESTS FOR STARTING WITH {my_name}: {my_id}'
+    for id in ids:
+        message += f', {id}'
+    send_message_to_group_of_ids(ids, message)
+
+def handle_salam(src_id):
+    message = 'Hezaro Sisad Ta Salam'
+    send_message_to_id(src_id, message)
+
+
 if __name__ == '__main__':
 
     id = input("Please enter your id: ")
@@ -119,66 +188,14 @@ if __name__ == '__main__':
                 chat_start(name, ids)
         else:
             message = input()
-            send_message_to_group_of_ids(chat_dict.keys, f'{message}')
+            if message == "EXIT CHAT":
+                is_chat = False
+                send_message_to_group_of_ids(chat_dict.keys, f'CHAT: EXIT CHAT {my_id}')
+                chat_dict = {}
+                chat_ids = []
+                
+            else:
+                send_message_to_group_of_ids(chat_dict.keys, f'{message}')
             
 ## application
 
-def send_message_to_id(dst_id, message):
-    #send message to dst_id
-    pass
-
-def send_message_to_group_of_ids(dst_ids, message):
-    for id in dst_ids:
-        if id in known_ids:
-            send_message_to_id(id, message)
-
-def handle_chat_recive(src_id, message):
-    if re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message):
-        m = re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message)
-        cname = m[1]
-        cid = m[2]
-        ids = m[2] + m[3].split(", ")[1:]
-        answer = input(f'{cname} with id {cid} has asked you to join a chat. Would you like to join?[Y/N]')
-        if answer == 'Y':
-            name = input("Choose a name for yourself")
-            my_name = name
-            chat_ids = ids
-            message = f'CHAT: {my_id} :{name}'
-            send_message_to_group_of_ids(ids, message)
-        else:
-            message = "CHAT: CANCLE"
-            send_message_to_group_of_ids(ids, message)
-    elif re.match(r'CHAT: (\w+) :(\w+)', message):
-        m = re.match(r'CHAT: (\w+) :(\w+)', message)
-        name = m[1]
-        id = m[2]
-        if id in chat_ids:
-            chat_dict[id] = name
-            print(f'{name}({id}) was joind to the chat.')
-    elif message == "CHAT: CANCLE":
-        try:
-            chat_ids.remove(src_id)
-        except:
-            pass
-    else :
-        print(f'{chat_dict[src_id]}: {message[5:]}')
-        
-
-def chat_start(name, ids):
-    my_name = name
-    i = 0
-    while i < len(ids):
-        if ids[i] in known_ids:
-            i+=1
-        else:
-            ids.pop(i)
-    is_chat = True
-    chat_ids = ids
-    message = f'CHAT: REQUESTS FOR STARTING WITH {my_name}: {my_id}'
-    for id in ids:
-        message += f', {id}'
-    send_message_to_group_of_ids(ids, message)
-
-def handle_salam(src_id):
-    message = 'Hezaro Sisad Ta Salam'
-    send_message_to_id(src_id, message)
