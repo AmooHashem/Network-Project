@@ -88,7 +88,7 @@ my_id = None
 my_name = ''
 chat_ids = []
 chat_dict = {}
-
+app_fw = 'A'
 def send_message_to_id(dst_id, message):
     #send message to dst_id
     pass
@@ -100,7 +100,7 @@ def send_message_to_group_of_ids(dst_ids, message):
 
 def handle_chat_recive(src_id, message):
     global chat_ids, chat_dict
-    if re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message) and not is_chat:
+    if re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message) and not is_chat and app_fw == 'A':
         m = re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message)
         cname = m[1]
         cid = m[2]
@@ -138,6 +138,9 @@ def handle_chat_recive(src_id, message):
         
 
 def chat_start(name, ids):
+    if app_fw == 'D':
+        print("Chat is disabled. Make sure the firewall allows you to chat.")
+        return
     my_name = name
     i = 0
     while i < len(ids):
@@ -186,6 +189,11 @@ if __name__ == '__main__':
                 name = m[1]
                 ids = m[2] + m[3].split(", ")[1:]
                 chat_start(name, ids)
+
+            elif comment == 'FW CHAT DROP':
+                app_fw = 'D'
+            elif comment == 'FW CHAT ACCEPT':
+                app_fw = 'A'
         else:
             message = input()
             if message == "EXIT CHAT":
