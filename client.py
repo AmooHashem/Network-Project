@@ -27,7 +27,7 @@ left_subtree_ids = []
 
 def get_message(client):
     message = json.loads(client.recv(1024).decode('ascii'))
-    return Packet(message['type'], message['src_id'], message['dst_id'], message['data'])
+    return Packet(int(message['type']), int(message['src_id']), int(message['dst_id']), message['data'])
 
 
 def send_message(link, message):
@@ -50,13 +50,16 @@ def receive():
     while True:
         try:
             client, address = receive_socket.accept()
+            sender_port = address[1]
             packet = get_message(client)
             type = packet.type
             src_id = packet.src_id
             dst_id = packet.dst_id
             data = packet.data
-            print("new packet", type, src_id, dst_id, data)
+            # print("new packet", type, src_id, dst_id, data)
+
             #################
+
             if type == 41:
                 chile_port = data
                 child_id = src_id
@@ -92,13 +95,36 @@ def receive():
                     print(id + data)
                 if type == 31:
                     print(data)
+                if type == 21:
+                    if data not in known_ids:
+                        known_ids.append(data)
                 if type == 0 and data[:5] == 'CHAT:':
                     handle_chat_receive(src_id, data)
-                elif type == 0 and data == 'Salam Salam Sad Ta Salam':
+                if type == 0 and data == 'Salam Salam Sad Ta Salam':
                     handle_salam(src_id)
                     print(f'{src_id}: {data}')
-                elif type == 0 and data == 'Hezaro Sisad Ta Salam':
+                if type == 0 and data == 'Hezaro Sisad Ta Salam':
                     print(f'{src_id}: {data}')
+                continue
+
+            #################
+
+            if dst_id == -1:
+                if type == 21:
+                    if data not in known_ids:
+                        known_ids.append(data)
+
+                print("EDFDEFC")
+                sender_receive_port = address[1] - 1
+                print(dst_id, sender_receive_port)
+                if parent_port != -1 and parent_port != sender_receive_port:
+                    send_on_link(my_send_port, parent_port, packet)
+
+                if left_child_port != -1 and left_child_port != sender_receive_port:
+                    send_on_link(my_send_port, left_child_port, packet)
+
+                if right_child_port != -1 and right_child_port != sender_receive_port:
+                    send_on_link(my_send_port, right_child_port, packet)
                 continue
 
             #################
@@ -111,9 +137,6 @@ def receive():
 
             #################
 
-            #
-            #
-            #
             if type == 11:
                 packet.data = ('<-' + id if next_port == parent_id else '->' + id) + packet.data
 
@@ -243,17 +266,19 @@ def write():
     global is_chat, my_id, my_name, chat_dict, chat_ids, app_fw, chat_input, global_command
     while True:
         if not is_chat:
-            command = input("enter order:\n")
+            command = input("enter command:\n")
+            command_parts = command.split(' ')
+
             if chat_input:
                 global_command = command
                 chat_input = False
                 continue
-            command_parts = command.split(' ')
+
             if command == 'SHOW KNOWN CLIENTS':
                 print(known_ids)
 
             if command_parts[0] == 'ROUTE':
-                dst_id = command_parts[1]
+                dst_id = int(command_parts[1])
                 if dst_id not in known_ids:
                     print(f'Unknown destination {dst_id}')
                     continue
@@ -264,12 +289,22 @@ def write():
                 send_on_link(my_send_port, next_port, Packet(10, id, dst_id, ''))
 
             if command_parts[0] == 'ADVERTISE':
-                dst_id = command_parts[1]
-                if dst_id not in known_ids:
+                dst_id = int(command_parts[1])
+                if dst_id not in known_ids and dst_id != -1:
                     print(f'Unknown destination {dst_id}')
                     continue
-                # todo
-                continue
+                if dst_id != -1:
+                    next_port = find_next_port(dst_id)
+                    print(dst_id, next_port)
+                    send_on_link(my_send_port, next_port, Packet(21, id, dst_id, id))
+                else:
+                    print("SDERGFBDFRGTBFDS")
+                    if parent_port != -1:
+                        send_on_link(my_send_port, parent_port, Packet(21, id, -1, id))
+                    if left_child_port != -1:
+                        send_on_link(my_send_port, left_child_port, Packet(21, id, -1, id))
+                    if right_child_port != -1:
+                        send_on_link(my_send_port, right_child_port, Packet(21, id, -1, id))
 
             if re.match(r'START CHAT (\w+): (\w+)([, \w]*)', command):
                 m = re.match(r'START CHAT (\w+): (\w+)([, \w]*)', command)
