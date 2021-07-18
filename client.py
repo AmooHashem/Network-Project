@@ -127,29 +127,56 @@ def receive():
 
 def write():
     while True:
-        command = input()
-        command_parts = command.split(' ')
-        if command == 'SHOW KNOWN CLIENTS':
-            print(known_ids)
+        if not is_chat:
+            command = input("enter order:\n")
+            command_parts = command.split(' ')
+            if command == 'SHOW KNOWN CLIENTS':
+                print(known_ids)
 
-        if command_parts[0] == 'ROUTE':
-            dst_id = command_parts[1]
-            if dst_id not in known_ids:
-                print(f'Unknown destination {dst_id}')
-                continue
-            next_port = find_next_port(dst_id)
-            if next_port == -1:
-                print(f'DESTINATION {dst_id} NOT FOUND')
-                continue
-            send_on_link(my_send_port, next_port, Packet(10, id, dst_id, ''))
+            if command_parts[0] == 'ROUTE':
+                dst_id = command_parts[1]
+                if dst_id not in known_ids:
+                    print(f'Unknown destination {dst_id}')
+                    continue
+                next_port = find_next_port(dst_id)
+                if next_port == -1:
+                    print(f'DESTINATION {dst_id} NOT FOUND')
+                    continue
+                send_on_link(my_send_port, next_port, Packet(10, id, dst_id, ''))
 
-        if command_parts[0] == 'ADVERTISE':
-            dst_id = command_parts[1]
-            if dst_id not in known_ids:
-                print(f'Unknown destination {dst_id}')
+            if command_parts[0] == 'ADVERTISE':
+                dst_id = command_parts[1]
+                if dst_id not in known_ids:
+                    print(f'Unknown destination {dst_id}')
+                    continue
+                # todo
                 continue
-            # todo
-            continue
+
+            if re.match(r'START CHAT (\w+): (\w+)([, \w]+)', command):
+                m = re.match(r'START CHAT (\w+): (\w+)([, \w]+)', command)
+                name = m[1]
+                ids = m[2] + m[3].split(", ")[1:]
+                chat_start(name, ids)
+
+            elif command == 'FW CHAT DROP':
+                app_fw = 'D'
+            elif command == 'FW CHAT ACCEPT':
+                app_fw = 'A'
+            elif re.match("SALAM TO (\w+)", command):
+                m = re.match("SALAM TO (\w+)", command)
+                send_message_to_id(m[1], "Salam Salam Sad Ta Salam")
+                
+        else:
+            message = input()
+            if message == "EXIT CHAT":
+                is_chat = False
+                send_message_to_group_of_ids(chat_dict.keys, f'CHAT: EXIT CHAT {my_id}')
+                chat_dict = {}
+                chat_ids = []
+                
+            else:
+                send_message_to_group_of_ids(chat_dict.keys, f'{message}')
+            
 
 is_chat = False
 my_id = None
@@ -248,33 +275,5 @@ if __name__ == '__main__':
     write_thread = threading.Thread(target=write)
     write_thread.start()
 
-    while True:
-        if not is_chat:
-            comment = input("enter order:\n")
-            if re.match(r'START CHAT (\w+): (\w+)([, \w]+)', comment):
-                m = re.match(r'START CHAT (\w+): (\w+)([, \w]+)', comment)
-                name = m[1]
-                ids = m[2] + m[3].split(", ")[1:]
-                chat_start(name, ids)
-
-            elif comment == 'FW CHAT DROP':
-                app_fw = 'D'
-            elif comment == 'FW CHAT ACCEPT':
-                app_fw = 'A'
-            elif re.match("SALAM TO (\w+)", comment):
-                m = re.match("SALAM TO (\w+)", comment)
-                send_message_to_id(m[1], "Salam Salam Sad Ta Salam")
-                
-        else:
-            message = input()
-            if message == "EXIT CHAT":
-                is_chat = False
-                send_message_to_group_of_ids(chat_dict.keys, f'CHAT: EXIT CHAT {my_id}')
-                chat_dict = {}
-                chat_ids = []
-                
-            else:
-                send_message_to_group_of_ids(chat_dict.keys, f'{message}')
-            
 ## application
 
