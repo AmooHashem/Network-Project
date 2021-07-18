@@ -1,11 +1,13 @@
 import json
 import socket
+import time
 import re
 
 from Packet import PacketEncoder
 
-manager_port = 12100
+manager_port = 21110
 host = '127.0.0.1'
+my_send_link = None
 
 
 def get_listen_port():
@@ -13,19 +15,26 @@ def get_listen_port():
     listen_port = int(f.read())
     f.seek(0)
     f.truncate()
-    f.write(str(listen_port + 1))
+    f.write(str(listen_port + 2))
     f.close()
     return listen_port
 
 
-def make_tcp_connection(port, packet):
-    my_link = make_link(port)
+def send_on_link(src_port, dst_port, packet):
+    link = make_link(src_port, dst_port)
     message = json.dumps(packet, cls=PacketEncoder).encode('ascii')
-    my_link.send(message)
-    my_link.close()
+    link.send(message)
 
 
-def make_link(port):
-    my_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    my_link.connect((host, port))
-    return my_link
+# todo: clean TOF?
+def make_link(src_port, dst_port):
+    global my_send_link
+    if my_send_link:
+        my_send_link.close()
+        time.sleep(0.1)
+
+    my_send_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    my_send_link.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    my_send_link.bind((host, src_port))
+    my_send_link.connect((host, dst_port))
+    return my_send_link
