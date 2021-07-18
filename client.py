@@ -96,7 +96,7 @@ def receive():
                     handle_chat_recive(src_id, data)
                 elif type == 0 and data == 'Salam Salam Sad Ta Salam':
                     handle_salam(src_id)
-                    print(f'{src_id}: {data}')  
+                    print(f'{src_id}: {data}')
                 elif type == 0 and data == 'Hezaro Sisad Ta Salam':
                     print(f'{src_id}: {data}')
                 continue
@@ -135,6 +135,9 @@ chat_ids = []
 chat_dict = {}
 app_fw = 'A'
 
+global_command = ''
+chat_input = False
+
 def send_message_to_id(dst_id, message):
     global known_ids, my_id
     if dst_id not in known_ids:
@@ -154,43 +157,60 @@ def send_message_to_group_of_ids(dst_ids, message):
             send_message_to_id(id, message)
 
 def handle_chat_recive(src_id, message):
-    global is_chat, my_id, my_name, chat_dict, chat_ids, app_fw
+    global is_chat, my_id, my_name, chat_dict, chat_ids, app_fw, chat_input, global_command
     print("chat", src_id, message, "resive!")
     if re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message) and not is_chat and app_fw == 'A':
+        print("!1")
         m = re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message)
         cname = m[1]
         cid = m[2]
         ids = [m[2]] + m[3].split(", ")[1:]
-        
-        answer = input(f'{cname} with id {cid} has asked you to join a chat. Would you like to join?[Y/N]')
+        print(f'{cname} with id {cid} has asked you to join a chat. Would you like to join?[Y/N]')
+        chat_input = True
+        while chat_input:
+            #can be better impelement!
+            pass
+        answer = global_command
         if answer == 'Y':
-            name = input("Choose a name for yourself")
+            chat_dict[cid] = cname
+            print("Choose a name for yourself")
+            chat_input = True
+            while chat_input:
+                #can be better impelement!
+                pass
+            name = global_command
             my_name = name
             chat_ids = ids
+            is_chat = True
             message = f'CHAT: {my_id} :{name}'
             send_message_to_group_of_ids(ids, message)
         else:
             message = "CHAT: CANCLE"
             send_message_to_group_of_ids(ids, message)
     elif re.match(r'CHAT: (\w+) :(\w+)', message):
+        print("!2")
         m = re.match(r'CHAT: (\w+) :(\w+)', message)
-        name = m[1]
-        id = m[2]
+        name = m[2]
+        id = m[1]
         if id in chat_ids:
             chat_dict[id] = name
             print(f'{name}({id}) was joind to the chat.')
     elif message == "CHAT: CANCLE":
+        print("!3")
         try:
             chat_ids.remove(src_id)
         except:
             pass
     elif re.match("CHAT: EXIT CHAT (\w+)", message):
+        print("!4")
         m = re.match("CHAT: EXIT CHAT (\w+)", message)
         id = m[1]
         print(f'{chat_dict[id]}({id}) left the chat.')
         chat_ids.remove(id)
         chat_dict.pop(id)
-    else :
+    else:
+        print("!5")
+        print(chat_dict, src_id, message)
         print(f'{chat_dict[src_id]}: {message[5:]}')
         
 
@@ -218,12 +238,15 @@ def handle_salam(src_id):
     message = 'Hezaro Sisad Ta Salam'
     send_message_to_id(src_id, message)
 
-
 def write():
-    global is_chat, my_id, my_name, chat_dict, chat_ids, app_fw
+    global is_chat, my_id, my_name, chat_dict, chat_ids, app_fw, chat_input, global_command
     while True:
         if not is_chat:
             command = input("enter order:\n")
+            if chat_input:
+                global_command = command
+                chat_input = False
+                continue
             command_parts = command.split(' ')
             if command == 'SHOW KNOWN CLIENTS':
                 print(known_ids)
@@ -251,6 +274,8 @@ def write():
                 m = re.match(r'START CHAT (\w+): (\w+)([, \w]*)', command)
                 name = m[1]
                 ids = [m[2]] + m[3].split(", ")[1:]
+
+                print(m[3], ids)
                 chat_start(name, ids)
 
             elif command == 'FW CHAT DROP':
@@ -265,12 +290,12 @@ def write():
             message = input()
             if message == "EXIT CHAT":
                 is_chat = False
-                send_message_to_group_of_ids(chat_dict.keys, f'CHAT: EXIT CHAT {my_id}')
+                send_message_to_group_of_ids(list(chat_dict.keys()), f'CHAT: EXIT CHAT {my_id}')
                 chat_dict = {}
                 chat_ids = []
                 
             else:
-                send_message_to_group_of_ids(chat_dict.keys, f'{message}')
+                send_message_to_group_of_ids(list(chat_dict.keys()), f'CHAT: {message}')
             
 
 
