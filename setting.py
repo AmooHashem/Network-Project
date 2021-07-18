@@ -5,7 +5,7 @@ import re
 
 from Packet import PacketEncoder
 
-manager_port = 21110
+manager_port = 11110
 host = '127.0.0.1'
 my_send_link = None
 
