@@ -5,6 +5,7 @@ import re
 
 from Packet import Packet, PacketEncoder
 from setting import host, manager_port, get_listen_port, send_on_link, make_link
+import application
 
 my_listen_port = get_listen_port()
 my_send_port = my_listen_port + 1
@@ -55,8 +56,7 @@ def receive():
             dst_id = packet.dst_id
             data = packet.data
 
-            print("%%%")
-            print(packet)
+            #################
 
             if type == 41:
                 chile_port = data
@@ -82,6 +82,8 @@ def receive():
                     send_on_link(my_send_port, parent_port, Packet(20, id, parent_id, src_id))
                 continue
 
+            #################
+
             if dst_id == id:
                 if type == 10:
                     next_port = find_next_port(src_id)
@@ -94,25 +96,30 @@ def receive():
 
                 continue
 
+            #################
+
             next_port = find_next_port(dst_id)
             if next_port == -1:
                 next_port = find_next_port(src_id)
                 send_on_link(my_send_port, next_port, Packet(31, id, src_id, f'DESTINATION {dst_id} NOT FOUND'))
                 continue
+
+            #################
+
+            if type == 0 and packet.data[:5] == 'CHAT:':
+                application.handle_chat(packet.dst_id, packet.data)
+
             #
             #
             #
             if type == 11:
                 packet.data = ('<-' + id if next_port == parent_id else '->' + id) + packet.data
 
+            #################
+
             send_on_link(my_send_port, next_port, packet)
 
-
-
-        # if message == 'username':
-        #     sender.send(id.encode('ascii'))
         except:
-            # sender.close()
             break
 
 
