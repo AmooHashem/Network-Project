@@ -55,7 +55,7 @@ def receive():
             src_id = packet.src_id
             dst_id = packet.dst_id
             data = packet.data
-
+            print("new packet", type, src_id, dst_id, data)
             #################
             if type == 41:
                 chile_port = data
@@ -92,7 +92,13 @@ def receive():
                     print(id + data)
                 if type == 31:
                     print(data)
-
+                if type == 0 and data[:5] == 'CHAT:':
+                    handle_chat_receive(src_id, data)
+                elif type == 0 and data == 'Salam Salam Sad Ta Salam':
+                    handle_salam(src_id)
+                    print(f'{src_id}: {data}')
+                elif type == 0 and data == 'Hezaro Sisad Ta Salam':
+                    print(f'{src_id}: {data}')
                 continue
 
             #################
@@ -104,11 +110,6 @@ def receive():
                 continue
 
             #################
-
-            if type == 0 and data[:5] == 'CHAT:':
-                handle_chat_receive(src_id, data)
-            if type == 0 and data == 'Salam Salam Sad Ta Salam':
-                handle_salam(src_id)
 
             #
             #
@@ -124,33 +125,6 @@ def receive():
             break
 
 
-def write():
-    while True:
-        command = input()
-        command_parts = command.split(' ')
-        if command == 'SHOW KNOWN CLIENTS':
-            print(known_ids)
-
-        if command_parts[0] == 'ROUTE':
-            dst_id = command_parts[1]
-            if dst_id not in known_ids:
-                print(f'Unknown destination {dst_id}')
-                continue
-            next_port = find_next_port(dst_id)
-            if next_port == -1:
-                print(f'DESTINATION {dst_id} NOT FOUND')
-                continue
-            send_on_link(my_send_port, next_port, Packet(10, id, dst_id, ''))
-
-        if command_parts[0] == 'ADVERTISE':
-            dst_id = command_parts[1]
-            if dst_id not in known_ids:
-                print(f'Unknown destination {dst_id}')
-                continue
-            # todo
-            continue
-
-
 is_chat = False
 my_id = None
 my_name = ''
@@ -158,10 +132,21 @@ chat_ids = []
 chat_dict = {}
 app_fw = 'A'
 
+global_command = ''
+chat_input = False
+
 
 def send_message_to_id(dst_id, message):
-    # send message to dst_id
-    pass
+    global known_ids, my_id
+    if dst_id not in known_ids:
+        print(f'Unknown destination {dst_id}')
+        return
+    next_port = find_next_port(dst_id)
+    if next_port == -1:
+        print(f'DESTINATION {dst_id} NOT FOUND')
+        return
+    send_on_link(my_send_port, next_port, Packet(0, my_id, dst_id, message))
+    print(dst_id, message, "sent!")
 
 
 def send_message_to_group_of_ids(dst_ids, message):
@@ -171,45 +156,65 @@ def send_message_to_group_of_ids(dst_ids, message):
 
 
 def handle_chat_receive(src_id, message):
-    global chat_ids, chat_dict
+    global is_chat, my_id, my_name, chat_dict, chat_ids, app_fw, chat_input, global_command
+    print("chat", src_id, message, "resive!")
     if re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message) and not is_chat and app_fw == 'A':
+        print("!1")
         m = re.match(r"CHAT: REQUESTS FOR STARTING WITH (\w+): (\w+)([, \w]*)", message)
         cname = m[1]
         cid = m[2]
-        ids = m[2] + m[3].split(", ")[1:]
-        answer = input(f'{cname} with id {cid} has asked you to join a chat. Would you like to join?[Y/N]')
+        ids = [m[2]] + m[3].split(", ")[1:]
+        print(f'{cname} with id {cid} has asked you to join a chat. Would you like to join?[Y/N]')
+        chat_input = True
+        while chat_input:
+            # can be better impelement!
+            pass
+        answer = global_command
         if answer == 'Y':
-            name = input("Choose a name for yourself")
+            chat_dict[cid] = cname
+            print("Choose a name for yourself")
+            chat_input = True
+            while chat_input:
+                # can be better impelement!
+                pass
+            name = global_command
             my_name = name
             chat_ids = ids
+            is_chat = True
             message = f'CHAT: {my_id} :{name}'
             send_message_to_group_of_ids(ids, message)
         else:
             message = "CHAT: CANCLE"
             send_message_to_group_of_ids(ids, message)
     elif re.match(r'CHAT: (\w+) :(\w+)', message):
+        print("!2")
         m = re.match(r'CHAT: (\w+) :(\w+)', message)
-        name = m[1]
-        id = m[2]
+        name = m[2]
+        id = m[1]
         if id in chat_ids:
             chat_dict[id] = name
             print(f'{name}({id}) was joind to the chat.')
     elif message == "CHAT: CANCLE":
+        print("!3")
         try:
             chat_ids.remove(src_id)
         except:
             pass
     elif re.match("CHAT: EXIT CHAT (\w+)", message):
+        print("!4")
         m = re.match("CHAT: EXIT CHAT (\w+)", message)
         id = m[1]
         print(f'{chat_dict[id]}({id}) left the chat.')
         chat_ids.remove(id)
         chat_dict.pop(id)
     else:
+        print("!5")
+        print(chat_dict, src_id, message)
         print(f'{chat_dict[src_id]}: {message[5:]}')
 
 
 def chat_start(name, ids):
+    global is_chat, my_id, my_name, chat_dict, chat_ids, app_fw
     if app_fw == 'D':
         print("Chat is disabled. Make sure the firewall allows you to chat.")
         return
@@ -229,12 +234,72 @@ def chat_start(name, ids):
 
 
 def handle_salam(src_id):
+    print("salam", src_id, "resive!")
     message = 'Hezaro Sisad Ta Salam'
     send_message_to_id(src_id, message)
 
 
-if __name__ == '__main__':
+def write():
+    global is_chat, my_id, my_name, chat_dict, chat_ids, app_fw, chat_input, global_command
+    while True:
+        if not is_chat:
+            command = input("enter order:\n")
+            if chat_input:
+                global_command = command
+                chat_input = False
+                continue
+            command_parts = command.split(' ')
+            if command == 'SHOW KNOWN CLIENTS':
+                print(known_ids)
 
+            if command_parts[0] == 'ROUTE':
+                dst_id = command_parts[1]
+                if dst_id not in known_ids:
+                    print(f'Unknown destination {dst_id}')
+                    continue
+                next_port = find_next_port(dst_id)
+                if next_port == -1:
+                    print(f'DESTINATION {dst_id} NOT FOUND')
+                    continue
+                send_on_link(my_send_port, next_port, Packet(10, id, dst_id, ''))
+
+            if command_parts[0] == 'ADVERTISE':
+                dst_id = command_parts[1]
+                if dst_id not in known_ids:
+                    print(f'Unknown destination {dst_id}')
+                    continue
+                # todo
+                continue
+
+            if re.match(r'START CHAT (\w+): (\w+)([, \w]*)', command):
+                m = re.match(r'START CHAT (\w+): (\w+)([, \w]*)', command)
+                name = m[1]
+                ids = [m[2]] + m[3].split(", ")[1:]
+
+                print(m[3], ids)
+                chat_start(name, ids)
+
+            elif command == 'FW CHAT DROP':
+                app_fw = 'D'
+            elif command == 'FW CHAT ACCEPT':
+                app_fw = 'A'
+            elif re.match("SALAM TO (\w+)", command):
+                m = re.match("SALAM TO (\w+)", command)
+                send_message_to_id(m[1], "Salam Salam Sad Ta Salam")
+
+        else:
+            message = input()
+            if message == "EXIT CHAT":
+                is_chat = False
+                send_message_to_group_of_ids(list(chat_dict.keys()), f'CHAT: EXIT CHAT {my_id}')
+                chat_dict = {}
+                chat_ids = []
+
+            else:
+                send_message_to_group_of_ids(list(chat_dict.keys()), f'CHAT: {message}')
+
+
+if __name__ == '__main__':
     id = input("Please enter your id: ")
     my_id = id
     manager_link = make_link(my_send_port, manager_port)
@@ -252,29 +317,3 @@ if __name__ == '__main__':
 
     write_thread = threading.Thread(target=write)
     write_thread.start()
-
-    # while True:
-    #     if not is_chat:
-    #         comment = input("enter order:\n")
-    #         if re.match(r'START CHAT (\w+): (\w+)([, \w]+)', comment):
-    #             m = re.match(r'START CHAT (\w+): (\w+)([, \w]+)', comment)
-    #             name = m[1]
-    #             ids = m[2] + m[3].split(", ")[1:]
-    #             chat_start(name, ids)
-    #
-    #         elif comment == 'FW CHAT DROP':
-    #             app_fw = 'D'
-    #         elif comment == 'FW CHAT ACCEPT':
-    #             app_fw = 'A'
-    #     else:
-    #         message = input()
-    #         if message == "EXIT CHAT":
-    #             is_chat = False
-    #             send_message_to_group_of_ids(chat_dict.keys, f'CHAT: EXIT CHAT {my_id}')
-    #             chat_dict = {}
-    #             chat_ids = []
-    #
-    #         else:
-    #             send_message_to_group_of_ids(chat_dict.keys, f'{message}')
-    #
-## application
