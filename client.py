@@ -83,9 +83,11 @@ def write():
             dest_id = command_parts[1]
 
 is_chat = False
+my_id = None
 if __name__ == '__main__':
 
     id = input("Please enter your id: ")
+    my_id = id__
     manager_link = make_link(manager_port)
     manager_link.send(f"{id} REQUESTS FOR CONNECTING TO NETWORK ON PORT {my_listen_port}".encode('ascii'))
     message_parts = manager_link.recv(1024).decode('ascii').split(' ')
@@ -123,7 +125,15 @@ def send_message_to_group_of_ids(dst_ids, message):
             send_message_to_id(id, message)
 
 def handle_chat_recive(src_id, message):
-    pass
+    if message.match(r"CHAT: REQUESTS FOR STARTING WITH {+w}: {+w}(, {+w})+"):
+        answer = input(f'{cname} with id {cid} has asked you to join a chat. Would you like to join?[Y/N]')
+        if answer == 'Y':
+            name = input("Choose a name for yourself")
+            message = f'CHAT: {my_id} :{name}'
+            send_message_to_group_of_ids(ids, message)
+    elif message.match(r'CHAT: {+w} :{+w}'):
+        print(f'{name}({id}) was joind to the chat.')
+        
 
 def chat_start(name, ids):
     i = 0
