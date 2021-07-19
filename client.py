@@ -3,6 +3,7 @@ import socket
 import threading
 import re
 
+from Filter import Filter
 from Packet import Packet, PacketEncoder
 from setting import host, manager_port, get_listen_port, send_on_link, make_link
 import re
@@ -23,6 +24,7 @@ left_child_port = -1
 known_ids = []
 right_subtree_ids = []
 left_subtree_ids = []
+filters = []
 
 
 def get_message(client):
@@ -45,6 +47,17 @@ def find_next_port(dst_id):
         return parent_port
 
 
+def does_filter_apply_on_packet(packet: Packet, filter: Filter):
+    if filter.type != str(packet.type): return False
+    if (filter.direction == 'INPUT' or filter.direction == 'FORWARD') and \
+            (str(packet.src_id) == filter.src_id or filter.src_id == '*'):
+        return True
+    if (filter.direction == 'OUTPUT' or filter.direction == 'FORWARD') and \
+            (str(packet.dst_id) == filter.dst_id or filter.dst_id == '*'):
+        return True
+    return False
+
+
 def receive():
     global left_child_id, left_child_port, right_child_id, right_child_port
     while True:
@@ -60,10 +73,23 @@ def receive():
 
             #################
 
+            can_pass = True
+            for filter in filters:
+                print(filter)
+                if does_filter_apply_on_packet(packet, filter):
+                    if filter.action == 'ACCEPT':
+                        can_pass &= True
+                    else:
+                        can_pass &= False
+
+            if not can_pass:
+                continue
+
+            #################
+
             if type == 41:
                 chile_port = data
                 child_id = src_id
-                print(child_id)
                 if left_child_id == -1:
                     left_child_id = child_id
                     left_child_port = chile_port
@@ -75,7 +101,7 @@ def receive():
             if type == 20:
                 child_id = src_id
                 src_id = data
-                known_ids.append(src_id)
+                known_ids.append(int(src_id))
                 if child_id == left_child_id:
                     left_subtree_ids.append(src_id)
                 else:
@@ -97,7 +123,7 @@ def receive():
                     print(data)
                 if type == 21:
                     if data not in known_ids:
-                        known_ids.append(data)
+                        known_ids.append(int(data))
                 if type == 0 and data[:5] == 'CHAT:':
                     handle_chat_receive(src_id, data)
                 if type == 0 and data == 'Salam Salam Sad Ta Salam':
@@ -112,11 +138,9 @@ def receive():
             if dst_id == -1:
                 if type == 21:
                     if data not in known_ids:
-                        known_ids.append(data)
+                        known_ids.append(int(data))
 
-                print("EDFDEFC")
                 sender_receive_port = address[1] - 1
-                print(dst_id, sender_receive_port)
                 if parent_port != -1 and parent_port != sender_receive_port:
                     send_on_link(my_send_port, parent_port, packet)
 
@@ -306,6 +330,10 @@ def write():
                     if right_child_port != -1:
                         send_on_link(my_send_port, right_child_port, Packet(21, id, -1, id))
 
+            if command_parts[0] == 'FILTER':
+                filters.append \
+                    (Filter(command_parts[1], command_parts[2], command_parts[3], command_parts[4], command_parts[5]))
+
             if re.match(r'START CHAT (\w+): (\w+)([, \w]*)', command):
                 m = re.match(r'START CHAT (\w+): (\w+)([, \w]*)', command)
                 name = m[1]
@@ -341,7 +369,7 @@ if __name__ == '__main__':
     manager_link.send(f"{id} REQUESTS FOR CONNECTING TO NETWORK ON PORT {my_listen_port}".encode('ascii'))
     message_parts = manager_link.recv(1024).decode('ascii').split(' ')
     parent_id, parent_port = message_parts[2], int(message_parts[5])
-    known_ids.append(parent_id)
+    known_ids.append(int(parent_id))
 
     if parent_id != '-1':
         send_on_link(my_send_port, parent_port, Packet(41, id, parent_id, my_listen_port))
