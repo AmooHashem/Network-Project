@@ -5,7 +5,7 @@ import re
 
 from Packet import PacketEncoder
 
-manager_port = 32110
+manager_port = 44191
 host = '127.0.0.1'
 my_send_link = None
 
@@ -35,6 +35,6 @@ def make_link(src_port, dst_port):
 
     my_send_link = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     my_send_link.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    my_send_link.bind((host, src_port))
-    my_send_link.connect((host, dst_port))
+    my_send_link.bind((host, int(src_port)))
+    my_send_link.connect((host, int(dst_port)))
     return my_send_link
